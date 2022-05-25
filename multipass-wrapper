@@ -40,6 +40,16 @@ users:
     shell: /usr/bin/bash
     ssh_authorized_keys:
       - $( cat $SSH_PUB_KEY )
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - unzip
+  - awscli
+  - apt-transport-https 
+  - ca-certificates
+  - gnupg
 EOF
 }
 
@@ -61,8 +71,10 @@ case $1 in
      ;;
 
      destroy)
-       multipass delete $HOSTNAME 2> /dev/null
-       $MULTIPASS purge 2> /dev/null
+       #$MULTIPASS delete $HOSTNAME 2> /dev/null
+       $MULTIPASS delete $HOSTNAME
+       #$MULTIPASS purge 2> /dev/null
+       $MULTIPASS purge 
 
        echo "> Removing alias for $HOSTNAME"
        sed -i "/$HOSTNAME/d" $BASH_ALIAS_FILE
