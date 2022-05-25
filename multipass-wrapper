@@ -1,0 +1,78 @@
+#!/bin/bash
+
+#
+# Script:  multipass-wrapper
+# Purpose: A simple wrapper for multipass to create some VMs for dev purposes
+# Author:  Ed Randall, April 2022
+#
+
+ROOT_DIR="$HOME/scripts/"
+
+VM_PREFIX="mpw"
+
+BASH_ALIAS_FILE="$HOME/.bash_aliases"
+CLOUD_INIT_FILE="$ROOT_DIR/etc/dev-env/cloud-init.yaml"
+SSH_PRIV_KEY="$HOME/.ssh/precision-key"
+SSH_PUB_KEY="$SSH_PRIV_KEY.pub"
+
+MULTIPASS=$(which multipass) || { echo "Error: multipass not found, please verify" ; exit 1; } ;
+
+[ -f $SSH_PRIV_KEY ] || { echo "Please check if $SSH_PRIV_KEY file is present"; exit 1; } ;
+[ -f $SSH_PUB_KEY ] || { echo "Please check if $SSH_PUB_KEY file is present"; exit 1; } ;
+
+function usage {
+  echo "Usage: { $0 create [name] | destroy [name]}"
+  exit 1
+}
+
+#This script takes 2 arguments, the second will be the hostname (to create or destroy)
+[ "$1" == "create" ] || [ "$1" == "destroy" ] || usage
+[ "$#" -ne 2 ] && usage
+HOSTNAME=$VM_PREFIX-$2
+
+function gen_cloud_init {
+[ -f $CLOUD_INIT_FILE ] && { rm -f $CLOUD_INIT_FILE; } ;
+cat <<EOF > $CLOUD_INIT_FILE
+---
+users:
+  - name: dev-user
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /usr/bin/bash
+    ssh_authorized_keys:
+      - $( cat $SSH_PUB_KEY )
+EOF
+}
+
+case $1 in
+     create)
+       gen_cloud_init
+
+       echo "> Creating Virtual Machine: $HOSTNAME"
+       $MULTIPASS launch --name $HOSTNAME --cloud-init $CLOUD_INIT_FILE
+       
+       IP_ADDR="$($MULTIPASS list | grep $HOSTNAME | awk {'print $3'})"
+
+       echo "alias $HOSTNAME='ssh -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY dev-user@$IP_ADDR'" >> $BASH_ALIAS_FILE
+       echo "> Source $BASH_ALIAS_FILE before proceding"
+     ;;
+
+     list)
+       $MULTIPASS list
+     ;;
+
+     destroy)
+       multipass delete $HOSTNAME 2> /dev/null
+       $MULTIPASS purge 2> /dev/null
+
+       echo "> Removing alias for $HOSTNAME"
+       sed -i "/$HOSTNAME/d" $BASH_ALIAS_FILE
+
+       echo
+       ;;
+
+     *)
+       usage
+     ;;
+esac
+
+
