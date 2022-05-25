@@ -53,7 +53,7 @@ case $1 in
        IP_ADDR="$($MULTIPASS list | grep $HOSTNAME | awk {'print $3'})"
 
        echo "alias $HOSTNAME='ssh -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY dev-user@$IP_ADDR'" >> $BASH_ALIAS_FILE
-       echo "> Source $BASH_ALIAS_FILE before proceding"
+       echo "> source $BASH_ALIAS_FILE before proceding"
      ;;
 
      list)
