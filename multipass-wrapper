@@ -63,6 +63,11 @@ runcmd:
   - 'sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"'
   - 'sudo apt-get update -y'
   - 'sudo apt-get install terraform -y'
+  - 'curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash'
+  - 'curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"'
+  - 'mv kubectl /usr/local/bin'
+  - 'sudo chmod 755 /usr/local/bin/kubectl'
+
 EOF
 }
 
@@ -81,13 +86,10 @@ case $1 in
        #Install GH Private Key onto newly created VM (needs to be done after cloud-init)
        scp -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY $GH_PRIV_KEY dev-user@$IP_ADDR:~/.ssh/
 
-ssh -T -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY dev-user@$IP_ADDR <<EOC
-echo "pkill ssh-agent" >> /home/dev-user/.bashrc
-echo -e 'eval \`ssh-agent\`' >> /home/dev-user/.bashrc
-echo "ssh-add ~/.ssh/github-ssh-key-march-2022 2&>1 /dev/null" >> /home/dev-user/.bashrc
-
-
-
+       ssh -T -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY dev-user@$IP_ADDR <<EOC
+         echo "pkill ssh-agent" >> /home/dev-user/.bashrc
+         echo -e 'eval \`ssh-agent\`' >> /home/dev-user/.bashrc
+         echo "ssh-add ~/.ssh/github-ssh-key-march-2022 2&>1 /dev/null" >> /home/dev-user/.bashrc
 EOC
 
      ;;
