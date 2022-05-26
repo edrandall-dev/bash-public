@@ -15,6 +15,9 @@ CLOUD_INIT_FILE="$ROOT_DIR/etc/dev-env/cloud-init.yaml"
 SSH_PRIV_KEY="$HOME/.ssh/precision-key"
 SSH_PUB_KEY="$SSH_PRIV_KEY.pub"
 
+GH_PRIV_KEY="$HOME/.ssh/github-ssh-key-march-2022"
+GH_PUB_KEY="$GH_PRIV_KEY.pub"
+
 MULTIPASS=$(which multipass) || { echo "Error: multipass not found, please verify" ; exit 1; } ;
 
 [ -f $SSH_PRIV_KEY ] || { echo "Please check if $SSH_PRIV_KEY file is present"; exit 1; } ;
@@ -40,6 +43,8 @@ users:
     shell: /usr/bin/bash
     ssh_authorized_keys:
       - $( cat $SSH_PUB_KEY )
+    ssh_import_id:
+      - gh:github-ssh-key-march-2022
 
 packages:
   - unzip
@@ -72,6 +77,19 @@ case $1 in
        sed -i "/$HN/d" $BASH_ALIAS_FILE 
        echo "alias $HN='ssh -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY dev-user@$IP_ADDR'" >> $BASH_ALIAS_FILE
        echo "> source $BASH_ALIAS_FILE before proceding"
+
+       #Install GH Private Key onto newly created VM (needs to be done after cloud-init)
+       scp -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY $GH_PRIV_KEY dev-user@$IP_ADDR:~/.ssh/
+
+ssh -T -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY dev-user@$IP_ADDR <<EOC
+echo "pkill ssh-agent" >> /home/dev-user/.bashrc
+echo -e 'eval \`ssh-agent\`' >> /home/dev-user/.bashrc
+echo "ssh-add ~/.ssh/github-ssh-key-march-2022 2&>1 /dev/null" >> /home/dev-user/.bashrc
+
+
+
+EOC
+
      ;;
 
      list)
