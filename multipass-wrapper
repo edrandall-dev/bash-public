@@ -8,7 +8,7 @@
 
 ROOT_DIR="$HOME/scripts/"
 
-VM_PREFIX="mpw"
+VM_PREFIX="mpw-"
 
 BASH_ALIAS_FILE="$HOME/.bash_aliases"
 CLOUD_INIT_FILE="$ROOT_DIR/etc/dev-env/cloud-init.yaml"
@@ -28,7 +28,7 @@ function usage {
 [ "$1" == "list" ] || [ "$1" == "killall" ] && [ "$#" -ne 1 ] && usage
 [ "$1" == "create" ] || [ "$1" == "destroy" ] && [ "$#" -ne 2 ] && usage
 
-HOSTNAME=$VM_PREFIX-$2
+HN=$VM_PREFIX$2
 
 function gen_cloud_init {
 [ -f $CLOUD_INIT_FILE ] && { rm -f $CLOUD_INIT_FILE; } ;
@@ -41,9 +41,6 @@ users:
     ssh_authorized_keys:
       - $( cat $SSH_PUB_KEY )
 
-package_update: true
-package_upgrade: true
-
 packages:
   - unzip
   - awscli
@@ -55,8 +52,12 @@ runcmd:
   - curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-387.0.0-linux-x86.tar.gz
   - tar xf google-cloud-cli-387.0.0-linux-x86.tar.gz
   - sudo CLOUDSDK_CORE_DISABLE_PROMPTS=1 ./google-cloud-sdk/install.sh
-  - echo ". /google-cloud-sdk/completion.bash.inc" >> ~/.bashrc
-  - echo ". /google-cloud-sdk/path.bash.inc" >> ~/.bashrc
+  - 'echo ". /google-cloud-sdk/completion.bash.inc" >> /home/dev-user/.bashrc'
+  - 'echo ". /google-cloud-sdk/path.bash.inc" >> /home/dev-user/.bashrc'
+  - 'curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -'
+  - 'sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"'
+  - 'sudo apt-get update -y'
+  - 'sudo apt-get install terraform -y'
 EOF
 }
 
@@ -64,12 +65,12 @@ case $1 in
      create)
        gen_cloud_init
 
-       echo "> Creating Virtual Machine: $HOSTNAME"
-       $MULTIPASS launch --name $HOSTNAME --cloud-init $CLOUD_INIT_FILE
+       echo "> Creating Virtual Machine: $HN"
+       $MULTIPASS launch --name $HN --cloud-init $CLOUD_INIT_FILE
        
-       IP_ADDR="$($MULTIPASS list | grep $HOSTNAME | awk {'print $3'})"
-
-       echo "alias $HOSTNAME='ssh -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY dev-user@$IP_ADDR'" >> $BASH_ALIAS_FILE
+       IP_ADDR="$($MULTIPASS list | grep $HN | awk {'print $3'})"
+       sed -i "/$HN/d" $BASH_ALIAS_FILE 
+       echo "alias $HN='ssh -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY dev-user@$IP_ADDR'" >> $BASH_ALIAS_FILE
        echo "> source $BASH_ALIAS_FILE before proceding"
      ;;
 
@@ -78,14 +79,13 @@ case $1 in
      ;;
 
      destroy)
-       #$MULTIPASS delete $HOSTNAME 2> /dev/null
-       $MULTIPASS delete $HOSTNAME
+       #$MULTIPASS delete $HN 2> /dev/null
+       $MULTIPASS delete $HN
        #$MULTIPASS purge 2> /dev/null
        $MULTIPASS purge 
 
-       echo "> Removing alias for $HOSTNAME"
-       sed -i "/$HOSTNAME/d" $BASH_ALIAS_FILE
-
+       echo "> Removing alias for $HN"
+       sed -i "/$HN/d" $BASH_ALIAS_FILE
        echo
        ;;
 
@@ -103,6 +103,8 @@ case $1 in
          echo "> Deleting (and purging) ALL running VMs"
          $MULTIPASS list | grep -v ^Name | awk {'print $1'} | xargs $MULTIPASS delete
          $MULTIPASS purge
+         sed -i "/$VM_PREFIX/d" $BASH_ALIAS_FILE
+
        else
          echo "> Exiting without deleting VMs"
        fi
