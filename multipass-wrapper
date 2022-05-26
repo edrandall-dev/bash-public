@@ -92,7 +92,7 @@ case $1 in
      killall)
        
        if [[ $($MULTIPASS list | grep "No instances found.") ]] ; then
-         echo "No instances are running"
+         echo "No instances are running, nothing to kill."
          exit 0
        fi
 	     
