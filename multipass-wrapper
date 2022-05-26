@@ -21,13 +21,12 @@ MULTIPASS=$(which multipass) || { echo "Error: multipass not found, please verif
 [ -f $SSH_PUB_KEY ] || { echo "Please check if $SSH_PUB_KEY file is present"; exit 1; } ;
 
 function usage {
-  echo "Usage: { $0 create [name] | destroy [name]}"
+  echo "Usage: { multipass-wrapper create [name] | destroy [name] | killall }"
   exit 1
 }
 
-#This script takes 2 arguments, the second will be the hostname (to create or destroy)
-[ "$1" == "create" ] || [ "$1" == "destroy" ] || usage
-[ "$#" -ne 2 ] && usage
+[ "$1" == "create" ] || [ "$1" == "destroy" ] && [ "$#" -ne 2 ] && usage
+
 HOSTNAME=$VM_PREFIX-$2
 
 function gen_cloud_init {
@@ -50,6 +49,13 @@ packages:
   - apt-transport-https 
   - ca-certificates
   - gnupg
+
+runcmd:
+  - curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-387.0.0-linux-x86.tar.gz
+  - tar xf google-cloud-cli-387.0.0-linux-x86.tar.gz
+  - sudo CLOUDSDK_CORE_DISABLE_PROMPTS=1 ./google-cloud-sdk/install.sh
+  - echo ". /google-cloud-sdk/completion.bash.inc" >> ~/.bashrc
+  - echo ". /google-cloud-sdk/path.bash.inc" >> ~/.bashrc
 EOF
 }
 
@@ -81,6 +87,18 @@ case $1 in
 
        echo
        ;;
+
+     killall)
+       echo -n "> Are you sure you want to destroy and purge ALL VMs? [y/N]: "
+       read sure
+       if [ $sure == "y" ] || [ $sure == "Y" ] || [ $sure == "yes" ] || [ $sure == "Yes" ] ; then
+         echo "> Deleting (and purging) ALL running VMs"
+         $MULTIPASS list | grep -v ^Name | awk {'print $1'} | xargs $MULTIPASS delete
+         $MULTIPASS purge
+       else
+         echo "> Exiting without deleting VMs"
+       fi
+     ;;
 
      *)
        usage
