@@ -25,6 +25,7 @@ function usage {
   exit 1
 }
 
+[ "$1" == "list" ] || [ "$1" == "killall" ] && [ "$#" -ne 1 ] && usage
 [ "$1" == "create" ] || [ "$1" == "destroy" ] && [ "$#" -ne 2 ] && usage
 
 HOSTNAME=$VM_PREFIX-$2
@@ -89,8 +90,15 @@ case $1 in
        ;;
 
      killall)
+       
+       if [[ $($MULTIPASS list | grep "No instances found.") ]] ; then
+         echo "No instances are running"
+         exit 0
+       fi
+	     
        echo -n "> Are you sure you want to destroy and purge ALL VMs? [y/N]: "
        read sure
+
        if [ $sure == "y" ] || [ $sure == "Y" ] || [ $sure == "yes" ] || [ $sure == "Yes" ] ; then
          echo "> Deleting (and purging) ALL running VMs"
          $MULTIPASS list | grep -v ^Name | awk {'print $1'} | xargs $MULTIPASS delete
