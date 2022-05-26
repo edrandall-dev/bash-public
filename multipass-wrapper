@@ -79,9 +79,7 @@ case $1 in
      ;;
 
      destroy)
-       #$MULTIPASS delete $HN 2> /dev/null
        $MULTIPASS delete $HN
-       #$MULTIPASS purge 2> /dev/null
        $MULTIPASS purge 
 
        echo "> Removing alias for $HN"
@@ -90,7 +88,6 @@ case $1 in
        ;;
 
      killall)
-       
        if [[ $($MULTIPASS list | grep "No instances found.") ]] ; then
          echo "No instances are running, nothing to kill."
          exit 0
@@ -114,5 +111,3 @@ case $1 in
        usage
      ;;
 esac
-
-
