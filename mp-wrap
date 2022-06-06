@@ -1,0 +1,143 @@
+#!/bin/bash
+
+#
+# Script:  multipass-wrapper
+# Purpose: A simple wrapper for multipass to create some VMs for dev purposes
+# Author:  Ed Randall, June 2022
+#
+
+ROOT_DIR="$HOME/scripts/"
+
+VM_PREFIX="mpw-"
+
+BASH_ALIAS_FILE="$HOME/.bash_aliases"
+CLOUD_INIT_FILE="$ROOT_DIR/etc/dev-env/cloud-init.yaml"
+SSH_PRIV_KEY="$HOME/.ssh/precision-key"
+SSH_PUB_KEY="$SSH_PRIV_KEY.pub"
+
+GH_PRIV_KEY="$HOME/.ssh/github-ssh-key-march-2022"
+GH_PUB_KEY="$GH_PRIV_KEY.pub"
+
+MULTIPASS=$(which multipass) || { echo "Error: multipass not found, please verify" ; exit 1; } ;
+
+[ -f $SSH_PRIV_KEY ] || { echo "Please check if $SSH_PRIV_KEY file is present"; exit 1; } ;
+[ -f $SSH_PUB_KEY ] || { echo "Please check if $SSH_PUB_KEY file is present"; exit 1; } ;
+
+function usage {
+  echo "Usage: { multipass-wrapper create [name] | destroy [name] | copy [filename] [hostname] | killall }"
+  exit 1
+}
+
+#[ "$1" == "list" ] || [ "$1" == "killall" ] && [ "$#" -ne 1 ] && usage
+#[ "$1" == "create" ] || [ "$1" == "destroy" ] && [ "$#" -ne 2 ] && usage
+#[ "$1" == "copy" ] && [ "$#" -ne 3 ] && usage
+
+
+HN=$VM_PREFIX$2
+
+
+function gen_cloud_init {
+[ -f $CLOUD_INIT_FILE ] && { rm -f $CLOUD_INIT_FILE; } ;
+cat <<EOF > $CLOUD_INIT_FILE
+---
+users:
+  - name: dev-user
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /usr/bin/bash
+    ssh_authorized_keys:
+      - $( cat $SSH_PUB_KEY )
+    ssh_import_id:
+      - gh:github-ssh-key-march-2022
+
+packages:
+  - unzip
+  - awscli
+  - apt-transport-https 
+  - ca-certificates
+  - gnupg
+
+runcmd:
+  - curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-387.0.0-linux-x86.tar.gz
+  - tar xf google-cloud-cli-387.0.0-linux-x86.tar.gz
+  - sudo CLOUDSDK_CORE_DISABLE_PROMPTS=1 ./google-cloud-sdk/install.sh
+  - 'echo ". /google-cloud-sdk/completion.bash.inc" >> /home/dev-user/.bashrc'
+  - 'echo ". /google-cloud-sdk/path.bash.inc" >> /home/dev-user/.bashrc'
+  - 'curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -'
+  - 'sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"'
+  - 'sudo apt-get update -y'
+  - 'sudo apt-get install terraform -y'
+  - 'curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash'
+  - 'curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"'
+  - 'mv kubectl /usr/local/bin'
+  - 'sudo chmod 755 /usr/local/bin/kubectl'
+
+EOF
+}
+
+case $1 in
+     create)
+       gen_cloud_init
+
+       echo "> Creating Virtual Machine: $HN"
+       $MULTIPASS launch --name $HN --cloud-init $CLOUD_INIT_FILE
+       
+       IP_ADDR="$($MULTIPASS list | grep $HN | awk {'print $3'})"
+       sed -i "/$HN/d" $BASH_ALIAS_FILE 
+       echo "alias $HN='ssh -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY dev-user@$IP_ADDR'" >> $BASH_ALIAS_FILE
+       echo "> source $BASH_ALIAS_FILE before proceding"
+
+       #Install GH Private Key onto newly created VM (needs to be done after cloud-init)
+       scp -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY $GH_PRIV_KEY dev-user@$IP_ADDR:~/.ssh/
+
+       ssh -T -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY dev-user@$IP_ADDR <<EOC
+         echo "pkill ssh-agent" >> /home/dev-user/.bashrc
+         echo -e 'eval \`ssh-agent\`' >> /home/dev-user/.bashrc
+         echo "ssh-add ~/.ssh/github-ssh-key-march-2022" >> /home/dev-user/.bashrc
+EOC
+
+     ;;
+
+     list)
+       $MULTIPASS list
+     ;;
+
+     destroy)
+       $MULTIPASS delete $HN
+       $MULTIPASS purge 
+
+       echo "> Removing alias for $HN"
+       sed -i "/$HN/d" $BASH_ALIAS_FILE
+       echo
+       ;;
+
+     killall)
+       if [[ $($MULTIPASS list | grep "No instances found.") ]] ; then
+         echo "No instances are running, nothing to kill."
+         exit 0
+       fi
+	     
+       echo -n "> Are you sure you want to destroy and purge ALL VMs? [y/N]: "
+       read sure
+
+       if [ $sure == "y" ] || [ $sure == "Y" ] || [ $sure == "yes" ] || [ $sure == "Yes" ] ; then
+         echo "> Deleting (and purging) ALL running VMs"
+         $MULTIPASS list | grep -v ^Name | awk {'print $1'} | xargs $MULTIPASS delete
+         $MULTIPASS purge
+         sed -i "/$VM_PREFIX/d" $BASH_ALIAS_FILE
+
+       else
+         echo "> Exiting without deleting VMs"
+       fi
+     ;;
+     
+     copy)
+       ls -1 $2 > /dev/null 2>&1 || echo "Please check file/path"  
+       TARGET_IP=$(multipass list | grep $3 | awk {'print $3'})
+       $MULTIPASS list | grep -v ^Name | awk {'print $1'} | grep -q $3 || echo "Please check hostname";
+       scp -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY $2 dev-user@$TARGET_IP:~/
+     ;;
+
+     #*)
+     #  usage
+     #;;
+esac
