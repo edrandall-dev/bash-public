@@ -23,15 +23,23 @@ MULTIPASS=$(which multipass) || { echo "Error: multipass not found, please verif
 [ -f $SSH_PRIV_KEY ] || { echo "Please check if $SSH_PRIV_KEY file is present"; exit 1; } ;
 [ -f $SSH_PUB_KEY ] || { echo "Please check if $SSH_PUB_KEY file is present"; exit 1; } ;
 
+#  echo "$# arguments have been provided" 
+#  echo $1
+#  echo $2
+#  echo $3
+
 function usage {
-  echo "Usage: { multipass-wrapper create [name] | destroy [name] | killall }"
+  echo "Usage: { multipass-wrapper create [name] | destroy [name] | copy [filename] [hostname] | killall }"
   exit 1
 }
 
-[ "$1" == "list" ] || [ "$1" == "killall" ] && [ "$#" -ne 1 ] && usage
-[ "$1" == "create" ] || [ "$1" == "destroy" ] && [ "$#" -ne 2 ] && usage
+#[ "$1" == "list" ] || [ "$1" == "killall" ] && [ "$#" -ne 1 ] && usage
+#[ "$1" == "create" ] || [ "$1" == "destroy" ] && [ "$#" -ne 2 ] && usage
+#[ "$1" == "copy" ] && [ "$#" -ne 3 ] && usage
+
 
 HN=$VM_PREFIX$2
+
 
 function gen_cloud_init {
 [ -f $CLOUD_INIT_FILE ] && { rm -f $CLOUD_INIT_FILE; } ;
@@ -126,8 +134,15 @@ EOC
          echo "> Exiting without deleting VMs"
        fi
      ;;
-
-     *)
-       usage
+     
+     copy)
+       ls -1 $2 > /dev/null 2>&1 || echo "Please check file/path"  
+       TARGET_IP=$(multipass list | grep $3 | awk {'print $3'})
+       $MULTIPASS list | grep -v ^Name | awk {'print $1'} | grep -q $3 || echo "Please check hostname";
+       scp -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY $2 dev-user@$TARGET_IP:~/
      ;;
+
+     #*)
+     #  usage
+     #;;
 esac
