@@ -23,11 +23,6 @@ MULTIPASS=$(which multipass) || { echo "Error: multipass not found, please verif
 [ -f $SSH_PRIV_KEY ] || { echo "Please check if $SSH_PRIV_KEY file is present"; exit 1; } ;
 [ -f $SSH_PUB_KEY ] || { echo "Please check if $SSH_PUB_KEY file is present"; exit 1; } ;
 
-#  echo "$# arguments have been provided" 
-#  echo $1
-#  echo $2
-#  echo $3
-
 function usage {
   echo "Usage: { multipass-wrapper create [name] | destroy [name] | copy [filename] [hostname] | killall }"
   exit 1
