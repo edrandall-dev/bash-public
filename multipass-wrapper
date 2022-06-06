@@ -3,7 +3,7 @@
 #
 # Script:  multipass-wrapper
 # Purpose: A simple wrapper for multipass to create some VMs for dev purposes
-# Author:  Ed Randall, April 2022
+# Author:  Ed Randall, June 2022
 #
 
 ROOT_DIR="$HOME/scripts/"
@@ -89,7 +89,7 @@ case $1 in
        ssh -T -o StrictHostKeyChecking=no -i $SSH_PRIV_KEY dev-user@$IP_ADDR <<EOC
          echo "pkill ssh-agent" >> /home/dev-user/.bashrc
          echo -e 'eval \`ssh-agent\`' >> /home/dev-user/.bashrc
-         echo "ssh-add ~/.ssh/github-ssh-key-march-2022 2&>1 /dev/null" >> /home/dev-user/.bashrc
+         echo "ssh-add ~/.ssh/github-ssh-key-march-2022" >> /home/dev-user/.bashrc
 EOC
 
      ;;
