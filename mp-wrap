@@ -24,13 +24,14 @@ MULTIPASS=$(which multipass) || { echo "Error: multipass not found, please verif
 [ -f $SSH_PUB_KEY ] || { echo "Please check if $SSH_PUB_KEY file is present"; exit 1; } ;
 
 function usage {
-  echo "Usage: { multipass-wrapper create [name] | destroy [name] | copy [filename] [hostname] | killall }"
+  echo "Usage: { $0 list | create [name] | destroy [name] | copy [filename] [hostname] | killall }"
   exit 1
 }
 
-#[ "$1" == "list" ] || [ "$1" == "killall" ] && [ "$#" -ne 1 ] && usage
-#[ "$1" == "create" ] || [ "$1" == "destroy" ] && [ "$#" -ne 2 ] && usage
-#[ "$1" == "copy" ] && [ "$#" -ne 3 ] && usage
+[ -z "$1" ] && usage
+[ "$1" == "list" ] || [ "$1" == "killall" ] && [ "$#" -ne 1 ] && usage
+[ "$1" == "create" ] || [ "$1" == "destroy" ] && [ "$#" -ne 2 ] && usage
+[ "$1" == "copy" ] && [ "$#" -ne 3 ] && usage
 
 
 HN=$VM_PREFIX$2
