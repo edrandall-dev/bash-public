@@ -28,7 +28,10 @@ function usage {
   exit 1
 }
 
+echo $1
+
 [ -z "$1" ] && usage
+[ "$1" == "list" ] || [ "$1" == "create" ] || [ "$1" == "destroy" ] || [ "$1" == "copy" ] || [ "$1" == "killall" ] || usage
 [ "$1" == "list" ] || [ "$1" == "killall" ] && [ "$#" -ne 1 ] && usage
 [ "$1" == "create" ] || [ "$1" == "destroy" ] && [ "$#" -ne 2 ] && usage
 [ "$1" == "copy" ] && [ "$#" -ne 3 ] && usage
