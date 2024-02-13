@@ -5,19 +5,18 @@ if [ $UID != 0 ] ; then
 fi
 
 LOGFILE="/Users/edrandall/Desktop/dns-reset.log"
-DATESTAMP=$(date +"at %T on %m-%d-%y")
+DATESTAMP=$(date +"%T on %d-%m-%y")
 
-echo "*** Script invoked $DATESTAMP ***" >> $LOGFILE
+#echo "*** Script invoked $DATESTAMP ***" >> $LOGFILE
 
 MODULE="$(sudo launchctl list | grep -i dnsfilter | awk {'print $NF'})"
 if [ "$MODULE" == "com.dnsfilter.agent.macos.helper" ] ; then
-  echo "DNSfilter module is loaded. Unloading $DATESTAMP." >> $LOGFILE
+  echo "$DATESTAMP: DNSfilter module has been loaded. Unloading." >> $LOGFILE
   launchctl unload -w /Library/LaunchDaemons/com.dnsfilter.agent.macos.helper.plist
 fi
 
 DIRECTORY="/Applications/DNSFilter Agent.app/"
 if [ -d "$DIRECTORY" ] ; then
-  echo "Directory exists. Removing $DATESTAMP." >> $LOGFILE
+  echo "$DATESTAMP: Directory "$DIRECTORY" exists. Removing." >> $LOGFILE
   rm -rf "$DIRECTORY"
 fi
-
