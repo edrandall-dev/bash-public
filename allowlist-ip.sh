@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-ALLOWLIST_FILE=/opt/scripts/etc/allowlist.ips
+ALLOWLIST_FILE=allowlist.ips
 [ -f $ALLOWLIST_FILE ] || { echo "Error: $ALLOWLIST_FILE is missing. Check."; exit 1; }
 
 function usage()
@@ -43,7 +43,7 @@ if valid_ip $1; then
 
   #remind to reload iptables
   echo " --> $1 has been added to $ALLOWLIST_FILE."
-  echo " --> reload /opt/scripts/bin/iptables-shuttle.sh for it to take effect."
+  echo " --> reload iptables script for it to take effect."
 
 else
   usage;
