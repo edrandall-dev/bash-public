@@ -1,0 +1,80 @@
+#!/bin/bash
+
+#
+# Script:  windows_vm
+# Purpose: A script to start, stop or get the status of a running Virtualbox VM, called "windows"
+# Date:    9th April 2024
+# Author:  Ed Randall
+#
+
+#Make sure all commands are installed & available
+NC=$(which nc) || { echo "nc is required and can't be found.  please verify."; exit 1; } ;
+FPING=$(which fping) || { echo "fping is required and can't be found.  please verify."; exit 1; } ;
+VBOXMANAGE=$(which vboxmanage) || { echo "vboxmanage is required but can't be found. please verify."; exit 1; } ;
+VBOXHEADLESS=$(which vboxheadless) || { echo "vboxheadless is required but can't be found. please verify."; exit 1; } ;
+
+function usage {
+  echo "Usage: $(basename $0) start | stop | status"
+  exit 1
+}
+
+function is_running {
+  $VBOXMANAGE list runningvms | grep -q "windows"
+}
+
+[ "$#" -ne 2 ] || usage
+
+case $1 in
+  start)
+    if is_running; then
+      echo "Windows VM is already running."
+      exit 1
+    else
+      echo -e "START:\t\tUsing VBoxHeadless to start VirtualBox windows VM."
+      $VBOXHEADLESS -startvm windows > /dev/null 2>&1 &
+      sleep 2
+
+      echo -e "WAIT:\t\tWaiting for Windows VM to respond to a ping."
+      sleep 1
+      $FPING -c1 -t500 windows >> /dev/null 2>&1
+
+      while [ $? != 0 ] ; do
+        sleep 1
+        $FPING -c1 -t500 windows
+      done >> /dev/null 2>&1
+
+      echo -e "READY (1 of 2):\tWindows VM is awake and responding to ping."
+      sleep 1
+
+      while [ $? != 0 ] ; do
+        sleep 1
+        $NC -zv windows 3389
+      done >> /dev/null 2>&1
+
+      echo -e "READY (2 of 2):\tWindows VM is listening for RDP."
+    fi
+  ;;
+
+  stop)
+    if is_running; then
+      echo -e "WAIT:\t\tSending an ACPI shutdown signal to the Windows VM."
+      $VBOXMANAGE controlvm "windows" acpipowerbutton &
+      sleep 1
+    else
+      echo -e "STATUS:\t\tWindows VM is not running."
+      exit 1;
+    fi
+  ;;
+
+  status)
+    if is_running; then
+      echo -e "STATUS:\t\tWindows VM is running."
+    else
+      echo -e "STATUS:\t\tWindows VM is not running."
+    fi
+  ;;
+
+  *)
+    usage
+  ;;
+esac
